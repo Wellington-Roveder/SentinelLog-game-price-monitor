@@ -56,7 +56,7 @@ Streamlit — Dashboard com histórico e gráficos
 
 ```bash
 # Clone o repositório
-git clone https://github.com/Wellington-Roveder/SentinelLog--game-price-monitor.git
+git clone https://github.com/Wellington-Roveder/SentinelLog-game-price-monitor.git
 cd sentinellog
 
 # Instale as dependências
@@ -175,7 +175,7 @@ sentinellog/
 
 ### STREAMLIT
 ![dashboard1](assets/dashboard_1.png)
-![dashboard1](assets/dashboard_2.png)
+![dashboard2](assets/dashboard_2.png)
 
 ---
 
