@@ -164,6 +164,20 @@ sentinellog/
 ```
 
 ---
+### PRINTS DE EXECUÇÃO:
+
+### N8N
+![workflow](assets/worflow_n8n.png)
+![Sucesso_no_workflow](assets/workflow_sucess.png)
+
+### LOGS
+![LOGGING](assets/logg_action.png)
+
+### STREAMLIT
+![dashboard1](assets/dashboard_1.png)
+![dashboard1](assets/dashboard_2.png)
+
+---
 
 ## 👤 Autor
 
