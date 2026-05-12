@@ -18,9 +18,11 @@ O projeto foi construído com foco em escalabilidade e boas práticas — separa
 |---|---|
 | Python | Linguagem principal |
 | FastAPI + Uvicorn | API para expor o monitor como serviço |
-| SQLite | Persistência do histórico de preços |
+| PostgreSQL | Persistência do histórico de preços |
+| psycopg2 | Conector Python → PostgreSQL |
 | Streamlit | Dashboard interativo de visualização |
 | N8N | Orquestração e envio de emails |
+| Docker + Docker Compose | Containerização dos serviços |
 | python-dotenv | Gerenciamento de variáveis de ambiente |
 | Requests | Consumo da API externa |
 
@@ -37,7 +39,7 @@ sentinel_price.py — busca e compara preços
       ↓
 CheapShark API (preços em tempo real)
       ↓
-SQLite — salva apenas quando o preço muda
+PostgreSQL — salva apenas quando o preço muda
       ↓
 Retorna promoções → N8N envia email
       ↓
@@ -50,6 +52,7 @@ Streamlit — Dashboard com histórico e gráficos
 
 ### Pré-requisitos
 - Python 3.10+
+- PostgreSQL instalado e rodando
 - N8N instalado (local ou cloud)
 
 ### Instalação
@@ -57,13 +60,14 @@ Streamlit — Dashboard com histórico e gráficos
 ```bash
 # Clone o repositório
 git clone https://github.com/Wellington-Roveder/SentinelLog-game-price-monitor.git
-cd sentinellog
+cd SentinelLog-game-price-monitor
 
 # Instale as dependências
 pip install -r requirements.txt
 
 # Configure as variáveis de ambiente
 cp .env.example .env
+# Edite o .env com suas credenciais
 ```
 
 ### Variáveis de Ambiente
@@ -71,9 +75,15 @@ cp .env.example .env
 Crie um arquivo `.env` na raiz com:
 
 ```
-DB_NAME=sentinel_log_prices.db
+DB_NAME=sentinel_log
 CHEAPSHARK_URL=https://www.cheapshark.com/api/1.0
+USER=seu_usuario
+SENHA=sua_senha
+HOST=localhost
+PORT=5432
 ```
+
+> ⚠️ Crie o banco `sentinel_log` no PostgreSQL antes de rodar o projeto.
 
 ### Executando
 
@@ -88,12 +98,18 @@ uvicorn api.my_api:app --reload --port 8001
 streamlit run dashboard/app.py
 ```
 
+### Com Docker
+
+```bash
+docker-compose up --build
+```
+
 ---
 
 ## 🧠 Decisões Técnicas
 
-**Por que SQLite?**
-Atende o MVP do projeto com conexão simples e zero configuração. A migração para PostgreSQL seria o próximo passo natural em caso de múltiplos usuários simultâneos ou volume maior de dados.
+**Por que PostgreSQL?**
+Migrado do SQLite para suportar múltiplos usuários simultâneos, volume maior de dados e deploy em produção. A camada de banco ficou isolada no `db_manager.py`, tornando a migração transparente para o restante do sistema.
 
 **Por que salvar só quando o preço muda?**
 A lógica de comparação antes de inserir evita duplicatas desnecessárias no banco. Se o preço não mudou, nenhuma linha nova é criada — o banco só cresce quando há informação nova de verdade.
@@ -103,6 +119,9 @@ Permite que o N8N consuma o monitor via HTTP POST, desacoplando a execução do 
 
 **Por que N8N para os emails?**
 Separar a orquestração do código Python deixa cada parte com sua responsabilidade. O Python monitora e detecta, o N8N decide e notifica.
+
+**Por que Docker?**
+Garante que o ambiente seja reproduzível em qualquer máquina — sem problemas de dependências ou configuração manual do banco.
 
 ---
 
@@ -127,22 +146,27 @@ streamlit run dashboard/app.py
 
 **Integração N8N + FastAPI** — entender o fluxo de dados entre o Schedule Trigger, o HTTP Request e o IF node para evitar spam de emails foi um aprendizado importante sobre orquestração de workflows.
 
+**Migração SQLite → PostgreSQL** — adaptar o `db_manager.py` trocando `sqlite3` por `psycopg2`, ajustando placeholders de `?` para `%s`, e `AUTOINCREMENT` para `SERIAL`. A camada de serviço não precisou de nenhuma alteração.
+
 ---
 
 ## 🔮 Melhorias Futuras
 
-- [ ] Retry automático no N8N em caso de falha na requisição
-- [ ] Suporte a múltiplos usuários com PostgreSQL
+- [x] Migração de SQLite para PostgreSQL
+- [x] Containerização com Docker
+- [ ] Substituir N8N por Celery + Redis para tarefas assíncronas
+- [ ] Retry automático em caso de falha na requisição
 - [ ] Endpoint `GET /historico/{jogo}` para consultar preços via API
 - [ ] Adicionar jogos via endpoint sem editar o `jogos.json` manualmente
 - [ ] Notificação via Telegram além do email
+- [ ] Deploy em produção (Railway ou Render)
 
 ---
 
 ## 📁 Estrutura do Projeto
 
 ```
-sentinellog/
+SentinelLog-game-price-monitor/
 ├── api/
 │   ├── client.py           # Cliente HTTP reutilizável
 │   ├── game_api_client.py  # Integração com CheapShark API
@@ -150,7 +174,7 @@ sentinellog/
 ├── dashboard/
 │   └── app.py              # Dashboard Streamlit
 ├── database/
-│   └── db_manager.py       # Gerenciamento do SQLite
+│   └── db_manager.py       # Gerenciamento do PostgreSQL
 ├── services/
 │   └── sentinel_price.py   # Lógica principal do monitor
 ├── utils/
@@ -158,12 +182,16 @@ sentinellog/
 ├── logs/                   # Logs gerados (ignorado pelo git)
 ├── jogos.json              # Lista de jogos monitorados
 ├── main.py                 # Entry point para teste local
+├── Dockerfile.api          # Dockerfile da FastAPI
+├── Dockerfile.dashboard    # Dockerfile do Streamlit
+├── docker-compose.yml      # Orquestração dos containers
 ├── requirements.txt        # Dependências
-├── .env                    # Variáveis de ambiente (ignorado pelo git)
+├── .env.example            # Exemplo de variáveis de ambiente
 └── .gitignore
 ```
 
 ---
+
 ### PRINTS DE EXECUÇÃO:
 
 ### N8N

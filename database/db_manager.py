@@ -1,4 +1,4 @@
-import sqlite3
+import psycopg2 as postgres
 from datetime import datetime
 
 from dotenv import load_dotenv
@@ -9,14 +9,15 @@ load_dotenv()
 class DBManager:
     def __init__(self, db_name = os.getenv('DB_NAME')):
         self.db_name = db_name
-        self.conn = sqlite3.connect(db_name)
+
+        self.conn = postgres.connect(dbname=db_name, user=os.getenv('DB_USER'), password=os.getenv('DB_SENHA'), host=os.getenv('DB_HOST'), port=os.getenv('DB_PORT'))
         self.c  = self.conn.cursor()
         self._create_table()
 
     
     def _create_table(self):
         self.c.execute('''CREATE TABLE IF NOT EXISTS pricescrapers(
-                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                          id SERIAL PRIMARY KEY ,
                           produto TEXT NOT NULL, 
                           valor REAL NOT NULL,
                           data_verificacao TEXT NOT NULL,
@@ -28,7 +29,7 @@ class DBManager:
         try:
             self.c.execute('''
                 INSERT INTO pricescrapers (produto, valor, data_verificacao, loja_barata)
-                VALUES (?, ?, ?, ?)''', (produto, valor, data_atual, loja))
+                VALUES (%s, %s, %s, %s)''', (produto, valor, data_atual, loja))
             self.conn.commit()
         except Exception as e:
             self.conn.rollback()
@@ -37,7 +38,7 @@ class DBManager:
     def buscar_historico(self, produto):
         self.c.execute('''SELECT valor, data_verificacao, loja_barata
             FROM pricescrapers 
-            WHERE produto = ? 
+            WHERE produto = %s
             ORDER BY id DESC''', (produto,))
         return self.c.fetchall()         
             
