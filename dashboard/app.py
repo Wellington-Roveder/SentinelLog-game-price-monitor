@@ -1,22 +1,21 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
 from dotenv import load_dotenv
-import os
+from database.db_manager import DBManager
+
 
 load_dotenv()
+db_manager = DBManager()
+
+
+
 
 
 st.set_page_config(page_title="SentinelLog Dashboard", layout="wide")
 
 def carregar_dados():
-    conn = psycopg2.connect(dbname=os.getenv('DB_NAME'),
-                            user=os.getenv('DB_USER'),
-                            password=os.getenv('DB_SENHA'),
-                            host=os.getenv('DB_HOST'),
-                            port=os.getenv('DB_PORT'))
-    df = pd.read_sql_query("Select * FROM pricescrapers ORDER BY id DESC", conn)
-    conn.close()
+    db_dados = db_manager.buscar_tudo()
+    df = pd.DataFrame(db_dados, columns=['id','produto', 'valor', 'data_verificacao', 'loja_barata'])
     return df
 
 st.title("Sentinellog - Monitor de Preços")

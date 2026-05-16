@@ -1,6 +1,8 @@
 import requests
 from utils.logger import configurar_logger
 
+logger = configurar_logger()
+
 class APIClient:
     def __init__(self, base_url):
        self.base_url = base_url
@@ -8,8 +10,6 @@ class APIClient:
 
 
     def get(self, endpoint):
-        logger = configurar_logger()
-
         try:
             response = self.session.get(f"{self.base_url}/{endpoint}", timeout= 10) #reutiliza sessao, timeout para nao dar trava para sempre
             response.raise_for_status()
