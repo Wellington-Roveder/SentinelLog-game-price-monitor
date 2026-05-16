@@ -42,6 +42,9 @@ class DBManager:
             ORDER BY id DESC''', (produto,))
         return self.c.fetchall()         
             
+    def buscar_tudo(self):
+        self.c.execute('''SELECT * FROM pricescrapers''')
+        return self.c.fetchall()      
 
     def fechar_conexao(self):
         self.conn.close() 
