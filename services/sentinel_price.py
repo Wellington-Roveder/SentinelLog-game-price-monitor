@@ -2,7 +2,6 @@ from api.game_api_client import *
 from database.db_manager import DBManager
 import time
 from utils.logger import configurar_logger
-import json
 
 
 
@@ -11,13 +10,7 @@ def executar_monitor():
     service = GameAPI()
     logger = configurar_logger()
 
-    try:
-        with open('jogos.json', 'r') as f:
-            dados = json.load(f)
-            jogos_para_monitorar = dados['jogos']
-    except Exception as e:
-        logger.error(f"Erro na conexao json {e}")
-        return None
+    jogos_para_monitorar = db.buscar_jogo()
 
     
     jogos_promocao = []
@@ -26,7 +19,7 @@ def executar_monitor():
     
     for jogo in jogos_para_monitorar:
         try:
-            info = service.buscar_nome_jogo(jogo)
+            info = service.buscar_nome_jogo(jogo[1])
         
             if info:
                 nome = info['nome']
