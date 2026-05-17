@@ -1,4 +1,4 @@
-import psycopg2 as postgres
+import psycopg2 
 from datetime import datetime
 from dotenv import load_dotenv
 from database.connection import connection_pool
@@ -140,7 +140,7 @@ class DBManager:
 
             return id_gerado
 
-        except postgres.errors.UniqueViolation as e:
+        except psycopg2.errors.UniqueViolation as e:
             conn.rollback()
             raise
             

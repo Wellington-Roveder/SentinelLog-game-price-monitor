@@ -28,7 +28,7 @@ def rodar_script(x_api_key: str = Header()):
     if x_api_key != API_KEY:
         raise HTTPException(status_code=401, detail="Não autorizado")
     try:
-        jogos_promocao = executar_monitor() 
+        jogos_promocao = executar_monitor(db) 
         logger.info("Sucesso")
         return {"status": "ok", "Promoçoes": jogos_promocao}
     except Exception as e:

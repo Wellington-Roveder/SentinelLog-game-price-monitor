@@ -1,12 +1,11 @@
-from api.game_api_client import *
-from database.db_manager import DBManager
+from api.game_api_client import GameAPI
 import time
 from utils.logger import configurar_logger
 
 
 
-def executar_monitor():
-    db = DBManager()
+
+def executar_monitor(db):
     service = GameAPI()
     logger = configurar_logger()
 
@@ -58,5 +57,4 @@ def executar_monitor():
         time.sleep(1)
         
     logger.info("FIM - Monitoramento concluido")
-    db.fechar_conexao()
     return jogos_promocao
