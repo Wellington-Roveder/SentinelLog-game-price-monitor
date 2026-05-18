@@ -199,3 +199,36 @@ class DBManager:
 
             if conn:
                 connection_pool.putconn(conn)
+
+    
+    def deletar_jogo(self,id_jogo):
+        conn = None
+        cursor = None
+
+        try:
+            conn = connection_pool.getconn()
+            cursor = conn.cursor()
+
+            cursor.execute('''DELETE FROM jogos  WHERE id_jogo = %s''',(id_jogo,))
+
+            conn.commit()
+
+            if cursor.rowcount == 0:
+                return False
+            return True
+        except Exception as e:
+            if conn:
+               conn.rollback()
+
+
+            raise e   
+        
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if conn:
+                connection_pool.putconn(conn)
+   
+

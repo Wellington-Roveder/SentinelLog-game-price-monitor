@@ -71,3 +71,23 @@ def buscar_jogo(x_api_key: str = Header()):
     ]
 
     return resultado
+
+@app.delete("/jogos/{id_jogo}", status_code=status.HTTP_200_OK)
+def deletar_jogo(id_jogo: int,x_api_key: str = Header()):
+    if x_api_key != API_KEY:
+       raise HTTPException(status_code=401, detail="Não autorizado")
+    
+
+    removido = db.deletar_jogo(id_jogo)
+    
+    if not removido:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
+    
+    
+    return {
+        "mensagem": "Jogo removido com sucesso"
+    }
+    
