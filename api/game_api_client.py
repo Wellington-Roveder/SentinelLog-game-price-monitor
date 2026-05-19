@@ -11,6 +11,7 @@ class GameAPI:
     def __init__(self):
         self.api = APIClient(base_url=os.getenv('CHEAPSHARK_URL'))
         self.logger = configurar_logger()
+        self.loja = []
 
     def buscar_nome_jogo(self, nome_jogo):
         endpoint = f"games?title={nome_jogo}"
@@ -44,9 +45,11 @@ class GameAPI:
 
     def get_nome_loja(self, store_id):
         endpoint = "stores"
-        lojas = self.api.get(endpoint)
 
-        for loja in lojas:
+        if not self.loja:
+            self.loja = self.api.get(endpoint)
+
+        for loja in self.loja:
             if loja['storeID'] == store_id:
                 return loja['storeName']
 

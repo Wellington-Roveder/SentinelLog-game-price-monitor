@@ -61,33 +61,75 @@ def buscar_jogo(x_api_key: str = Header()):
     
     if x_api_key != API_KEY:
        raise HTTPException(status_code=401, detail="Não autorizado")
-    db_jogos = db.buscar_jogo()
-    resultado = [
+    try:
+        db_jogos = db.buscar_jogo()
+        resultado = [
         {
             "id": jogo[0],
             "nome": jogo[1]
         }
         for jogo in db_jogos
-    ]
+        ]
 
-    return resultado
+        return resultado
+
+    except Exception as e:
+        logger.error(f"Erro interno no Servidor: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no Servidor")
 
 @app.delete("/jogos/{id_jogo}", status_code=status.HTTP_200_OK)
 def deletar_jogo(id_jogo: int,x_api_key: str = Header()):
     if x_api_key != API_KEY:
        raise HTTPException(status_code=401, detail="Não autorizado")
     
-
-    removido = db.deletar_jogo(id_jogo)
+    try:
+        removido = db.deletar_jogo(id_jogo)
     
-    if not removido:
-        raise HTTPException(
+        if not removido:
+             raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+            )
+    
+    
+        return {
+            "mensagem": "Jogo removido com sucesso"
+        }
+    except HTTPException as e:
+        raise 
+    except Exception as e:
+        logger.error(f"Erro interno no Servidor: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no Servidor")
+    
+
+
+
+@app.get("/historico/{nome_jogo}")
+def pegar_historico(nome_jogo: str ,x_api_key: str = Header()):
+    if x_api_key != API_KEY:
+       raise HTTPException(status_code=401, detail="Não autorizado")
+    try:
+        historico = db.buscar_historico(nome_jogo)
+        if not historico:
+            raise HTTPException(
             status_code=404,
             detail="Jogo não encontrado"
         )
+        resultado = [
+            {
+                "valor": jogo[0],
+                "data_verificacao": jogo[1],
+                "loja_barata": jogo[2]
+
+            }
+            for jogo in historico
+        ]
+        return resultado
     
-    
-    return {
-        "mensagem": "Jogo removido com sucesso"
-    }
+    except HTTPException as e:
+        raise
+    except Exception as e:
+        logger.error(f"Erro interno no Servidor: {e}")
+        raise HTTPException(status_code=500, detail="Erro interno no Servidor")
+        
     
