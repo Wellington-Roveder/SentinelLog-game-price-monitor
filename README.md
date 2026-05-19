@@ -6,9 +6,11 @@
 
 ## 📌 Sobre o Projeto
 
-O SentinelLog nasceu da ideia de não perder promoções de jogos. Ele consulta a [CheapShark API](https://www.cheapshark.com/), compara os preços com o histórico salvo no banco de dados e, quando detecta uma queda de preço, dispara um email de alerta automaticamente via N8N.
+O SentinelLog nasceu da ideia de não perder promoções de jogos. Ele consulta a [CheapShark API](https://www.cheapshark.com/), compara os preços com o histórico salvo no banco de dados e, quando detecta uma queda de preço, dispara um alerta automaticamente via N8N.
 
 O projeto foi construído com foco em escalabilidade e boas práticas — separação de responsabilidades em camadas, logging estruturado com rotação diária, e automação de ponta a ponta sem intervenção manual.
+
+Hoje o SentinelLog está sendo preparado para produção real, incrementando robustez a cada sprint. Além de um monitor de preços, ele é uma API de monitoramento completa — transformando uma automação simples em um projeto real e escalável.
 
 ---
 
@@ -77,10 +79,11 @@ Crie um arquivo `.env` na raiz com:
 ```
 DB_NAME=sentinel_log
 CHEAPSHARK_URL=https://www.cheapshark.com/api/1.0
-USER=seu_usuario
-SENHA=sua_senha
-HOST=localhost
-PORT=5432
+DB_USER=seu_usuario
+DB_SENHA=sua_senha
+DB_HOST=localhost
+DB_PORT=5432
+INTERNAL_API_KEY=sua_chave
 ```
 
 > ⚠️ Crie o banco `sentinel_log` no PostgreSQL antes de rodar o projeto.
@@ -91,11 +94,11 @@ PORT=5432
 # Rodar o monitor manualmente (teste local)
 python main.py
 
-# Subir a API (para uso com N8N)
+# Subir a API
 uvicorn api.my_api:app --reload --port 8001
 
 # Rodar o dashboard
-streamlit run dashboard/app.py
+python -m streamlit run dashboard/app.py
 ```
 
 ### Com Docker
@@ -115,13 +118,22 @@ Migrado do SQLite para suportar múltiplos usuários simultâneos, volume maior 
 A lógica de comparação antes de inserir evita duplicatas desnecessárias no banco. Se o preço não mudou, nenhuma linha nova é criada — o banco só cresce quando há informação nova de verdade.
 
 **Por que FastAPI como entrypoint?**
-Permite que o N8N consuma o monitor via HTTP POST, desacoplando a execução do agendamento. O endpoint retorna as promoções encontradas, permitindo que o N8N decida se envia o email ou não baseado na resposta.
+Permite que o N8N consuma o monitor via HTTP POST, desacoplando a execução do agendamento. O endpoint retorna as promoções encontradas, permitindo que o N8N decida se envia o email ou não com base na resposta.
 
 **Por que N8N para os emails?**
 Separar a orquestração do código Python deixa cada parte com sua responsabilidade. O Python monitora e detecta, o N8N decide e notifica.
 
 **Por que Docker?**
 Garante que o ambiente seja reproduzível em qualquer máquina — sem problemas de dependências ou configuração manual do banco.
+
+**Preparação para deploy**
+Foram implementados endpoints para gerenciar a lista de jogos monitorados sem derrubar a aplicação — inserir e remover jogos via API, além de um endpoint para consultar o histórico de preços fora do dashboard.
+
+**ThreadedConnectionPool**
+O pool de conexões trata conexões mortas automaticamente, reutilizando-as entre requisições. Isso evita a sobrecarga de autenticação e rede exigida para estabelecer uma conexão do zero, reduz a latência das requisições e preserva memória e processamento do servidor de banco de dados.
+
+**Autenticação**
+Cada endpoint exige autenticação via `x-api-key`, retornando os status HTTP corretos em caso de falha. Como os endpoints serão consumidos tanto pelo N8N quanto por usuários externos, o tratamento de segurança foi implementado desde o início. Melhorias futuras incluirão geração de tokens e refresh para uso em tempo real.
 
 ---
 
@@ -133,7 +145,7 @@ O dashboard Streamlit exibe:
 - Tabela com todos os registros salvos
 
 ```bash
-streamlit run dashboard/app.py
+python -m streamlit run dashboard/app.py
 ```
 
 ---
@@ -142,11 +154,15 @@ streamlit run dashboard/app.py
 
 **Logger com rotação diária** — configurar o `TimedRotatingFileHandler` corretamente, evitar handlers duplicados com o guard `if not logger.handlers`, e entender que o arquivo fica travado enquanto o processo está rodando foram os principais desafios.
 
-**Design do banco de dados** — a decisão entre usar `UNIQUE` com upsert versus inserção simples com validação na camada de serviço. Optei por manter a lógica no `sentinel_price.py` e deixar o banco responsável apenas por persistir, o que ficou mais limpo e escalável.
+**Design do banco de dados** — a decisão entre usar `UNIQUE` com upsert versus inserção simples com validação na camada de serviço. A lógica ficou no `sentinel_price.py`, deixando o banco responsável apenas por persistir — mais limpo e escalável.
 
 **Integração N8N + FastAPI** — entender o fluxo de dados entre o Schedule Trigger, o HTTP Request e o IF node para evitar spam de emails foi um aprendizado importante sobre orquestração de workflows.
 
-**Migração SQLite → PostgreSQL** — adaptar o `db_manager.py` trocando `sqlite3` por `psycopg2`, ajustando placeholders de `?` para `%s`, e `AUTOINCREMENT` para `SERIAL`. A camada de serviço não precisou de nenhuma alteração.
+**Migração SQLite → PostgreSQL** — adaptar o `db_manager.py` trocando `sqlite3` por `psycopg2`, ajustando placeholders de `?` para `%s` e `AUTOINCREMENT` para `SERIAL`. A camada de serviço não precisou de nenhuma alteração.
+
+**Tratamento de erros HTTP** — entender que retornar `200 OK` com `{"status": "erro"}` no body não é o mesmo que retornar um erro HTTP real. Ferramentas como o N8N não conseguem tratar isso como falha — o status code correto é o que define o comportamento da automação.
+
+**Pool de conexões** — migrar de uma conexão única no `__init__` para um `ThreadedConnectionPool` compartilhado, garantindo que a aplicação não quebre se o banco reiniciar e que múltiplas requisições simultâneas sejam atendidas corretamente.
 
 ---
 
@@ -154,12 +170,14 @@ streamlit run dashboard/app.py
 
 - [x] Migração de SQLite para PostgreSQL
 - [x] Containerização com Docker
-- [ ] Substituir N8N por Celery + Redis para tarefas assíncronas
-- [ ] Retry automático em caso de falha na requisição
-- [ ] Endpoint `GET /historico/{jogo}` para consultar preços via API
-- [ ] Adicionar jogos via endpoint sem editar o `jogos.json` manualmente
+- [x] Pool de conexões com `ThreadedConnectionPool`
+- [x] Endpoint `GET /historico/{jogo}` para consultar preços via API
+- [x] Gerenciamento de jogos via endpoint (`POST`, `GET`, `DELETE`)
+- [ ] Cache de lojas com Redis
+- [ ] Autenticação via tokens JWT com refresh
 - [ ] Notificação via Telegram além do email
 - [ ] Deploy em produção (Railway ou Render)
+- [ ] Retry automático em caso de falha na requisição à CheapShark
 
 ---
 
@@ -174,13 +192,13 @@ SentinelLog-game-price-monitor/
 ├── dashboard/
 │   └── app.py              # Dashboard Streamlit
 ├── database/
-│   └── db_manager.py       # Gerenciamento do PostgreSQL
+│   ├── connection.py       # Pool de conexões PostgreSQL
+│   └── db_manager.py       # Gerenciamento do banco
 ├── services/
 │   └── sentinel_price.py   # Lógica principal do monitor
 ├── utils/
 │   └── logger.py           # Logger com rotação diária
 ├── logs/                   # Logs gerados (ignorado pelo git)
-├── jogos.json              # Lista de jogos monitorados
 ├── main.py                 # Entry point para teste local
 ├── Dockerfile.api          # Dockerfile da FastAPI
 ├── Dockerfile.dashboard    # Dockerfile do Streamlit
@@ -192,18 +210,22 @@ SentinelLog-game-price-monitor/
 
 ---
 
-### PRINTS DE EXECUÇÃO:
+### Prints de Execução
 
-### N8N
+#### N8N
 ![workflow](assets/worflow_n8n.png)
-![Sucesso_no_workflow](assets/workflow_sucess.png)
+![Sucesso no workflow](assets/workflow_sucess.png)
 
-### LOGS
-![LOGGING](assets/logg_action.png)
+#### Logs
+![Logging](assets/logg_action.png)
 
-### STREAMLIT
-![dashboard1](assets/dashboard_1.png)
-![dashboard2](assets/dashboard_2.png)
+#### Streamlit
+![Dashboard 1](assets/dashboard_1.png)
+![Dashboard 2](assets/dashboard_2.png)
+
+#### Documentação Swagger
+![Endpoints](assets/doc_api.png)
+![Schemas](assets/api_schemas.png)
 
 ---
 
