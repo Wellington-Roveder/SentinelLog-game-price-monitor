@@ -1,107 +1,109 @@
-# 🎮 SentinelLog — Monitor de Preços de Jogos
+# 🎮 SentinelLog — Game Price Monitor
 
-> Pipeline ETL em Python que monitora preços de jogos em tempo real via API REST, detecta variações automaticamente e envia alertas por email quando encontra promoções.
+[English](README.md) | [Português do Brasil](README.pt-BR.md)
 
----
-
-## 📌 Sobre o Projeto
-
-O SentinelLog nasceu da ideia de não perder promoções de jogos. Ele consulta a [CheapShark API](https://www.cheapshark.com/), compara os preços com o histórico salvo no banco de dados e, quando detecta uma queda de preço, dispara um alerta automaticamente via N8N.
-
-O projeto foi construído com foco em escalabilidade e boas práticas — separação de responsabilidades em camadas, logging estruturado com rotação diária, e automação de ponta a ponta sem intervenção manual.
-
-Hoje o SentinelLog está sendo preparado para produção real, incrementando robustez a cada sprint. Além de um monitor de preços, ele é uma API de monitoramento completa — transformando uma automação simples em um projeto real e escalável.
+> A Python ETL pipeline that monitors game prices in real time via REST API, automatically detects price changes, and sends email alerts when deals are found.
 
 ---
 
-## 🚀 Tecnologias
+## 📌 About the Project
 
-| Tecnologia | Uso |
+SentinelLog was born from the idea of never missing a game sale. It queries the [CheapShark API](https://www.cheapshark.com/), compares prices against a history saved in the database, and automatically fires an alert via N8N whenever a price drop is detected.
+
+The project was built with scalability and best practices in mind — layered separation of concerns, structured logging with daily rotation, and end-to-end automation with no manual intervention.
+
+SentinelLog is currently being prepared for real production, growing more robust with every sprint. Beyond a price monitor, it is a full monitoring API — turning a simple automation into a real, scalable project.
+
+---
+
+## 🚀 Technologies
+
+| Technology | Usage |
 |---|---|
-| Python | Linguagem principal |
-| FastAPI + Uvicorn | API para expor o monitor como serviço |
-| PostgreSQL | Persistência do histórico de preços |
-| psycopg2 | Conector Python → PostgreSQL |
-| Streamlit | Dashboard interativo de visualização |
-| N8N | Orquestração e envio de emails |
-| Docker + Docker Compose | Containerização dos serviços |
-| python-dotenv | Gerenciamento de variáveis de ambiente |
-| Requests | Consumo da API externa |
+| Python | Core language |
+| FastAPI + Uvicorn | API to expose the monitor as a service |
+| PostgreSQL | Price history persistence |
+| psycopg2 | Python → PostgreSQL connector |
+| Streamlit | Interactive visualization dashboard |
+| N8N | Orchestration and email delivery |
+| Docker + Docker Compose | Service containerization |
+| python-dotenv | Environment variable management |
+| Requests | External API consumption |
 
 ---
 
-## 🏗️ Arquitetura
+## 🏗️ Architecture
 
 ```
 N8N Schedule Trigger
       ↓
 HTTP POST /executar (FastAPI)
       ↓
-sentinel_price.py — busca e compara preços
+sentinel_price.py — fetches and compares prices
       ↓
-CheapShark API (preços em tempo real)
+CheapShark API (real-time prices)
       ↓
-PostgreSQL — salva apenas quando o preço muda
+PostgreSQL — saves only when the price changes
       ↓
-Retorna promoções → N8N envia email
+Returns deals → N8N sends email
       ↓
-Streamlit — Dashboard com histórico e gráficos
+Streamlit — Dashboard with history and charts
 ```
 
 ---
 
-## ⚙️ Como Rodar
+## ⚙️ How to Run
 
-### Pré-requisitos
+### Prerequisites
 - Python 3.10+
-- PostgreSQL instalado e rodando
-- N8N instalado (local ou cloud)
+- PostgreSQL installed and running
+- N8N installed (local or cloud)
 
-### Instalação
+### Installation
 
 ```bash
-# Clone o repositório
+# Clone the repository
 git clone https://github.com/Wellington-Roveder/SentinelLog-game-price-monitor.git
 cd SentinelLog-game-price-monitor
 
-# Instale as dependências
+# Install dependencies
 pip install -r requirements.txt
 
-# Configure as variáveis de ambiente
+# Configure environment variables
 cp .env.example .env
-# Edite o .env com suas credenciais
+# Edit .env with your credentials
 ```
 
-### Variáveis de Ambiente
+### Environment Variables
 
-Crie um arquivo `.env` na raiz com:
+Create a `.env` file at the project root:
 
 ```
 DB_NAME=sentinel_log
 CHEAPSHARK_URL=https://www.cheapshark.com/api/1.0
-DB_USER=seu_usuario
-DB_SENHA=sua_senha
+DB_USER=your_user
+DB_SENHA=your_password
 DB_HOST=localhost
 DB_PORT=5432
-INTERNAL_API_KEY=sua_chave
+INTERNAL_API_KEY=your_key
 ```
 
-> ⚠️ Crie o banco `sentinel_log` no PostgreSQL antes de rodar o projeto.
+> ⚠️ Create the `sentinel_log` database in PostgreSQL before running the project.
 
-### Executando
+### Running
 
 ```bash
-# Rodar o monitor manualmente (teste local)
+# Run the monitor manually (local test)
 python main.py
 
-# Subir a API
+# Start the API
 uvicorn api.my_api:app --reload --port 8001
 
-# Rodar o dashboard
+# Run the dashboard
 python -m streamlit run dashboard/app.py
 ```
 
-### Com Docker
+### With Docker
 
 ```bash
 docker-compose up --build
@@ -109,44 +111,43 @@ docker-compose up --build
 
 ---
 
-## 🧠 Decisões Técnicas
+## 🧠 Technical Decisions
 
-**Por que PostgreSQL?**
-Migrado do SQLite para suportar múltiplos usuários simultâneos, volume maior de dados e deploy em produção. A camada de banco ficou isolada no `db_manager.py`, tornando a migração transparente para o restante do sistema.
+**Why PostgreSQL?**
+Migrated from SQLite to support multiple concurrent users, larger data volumes, and production deployments. The database layer is isolated in `db_manager.py`, making the migration transparent to the rest of the system.
 
-**Por que salvar só quando o preço muda?**
-A lógica de comparação antes de inserir evita duplicatas desnecessárias no banco. Se o preço não mudou, nenhuma linha nova é criada — o banco só cresce quando há informação nova de verdade.
+**Why save only when the price changes?**
+The comparison logic before inserting avoids unnecessary duplicates in the database. If the price hasn't changed, no new row is created — the database only grows when there is genuinely new information.
 
-**Por que FastAPI como entrypoint?**
-Permite que o N8N consuma o monitor via HTTP POST, desacoplando a execução do agendamento. O endpoint retorna as promoções encontradas, permitindo que o N8N decida se envia o email ou não com base na resposta.
+**Why FastAPI as the entrypoint?**
+It allows N8N to consume the monitor via HTTP POST, decoupling execution from scheduling. The endpoint returns the deals found, letting N8N decide whether to send an email based on the response.
 
-**Por que N8N para os emails?**
-Separar a orquestração do código Python deixa cada parte com sua responsabilidade. O Python monitora e detecta, o N8N decide e notifica.
+**Why N8N for emails?**
+Separating orchestration from the Python code gives each part a single responsibility. Python monitors and detects; N8N decides and notifies.
 
-**Por que Docker?**
-Garante que o ambiente seja reproduzível em qualquer máquina — sem problemas de dependências ou configuração manual do banco.
+**Why Docker?**
+Ensures the environment is reproducible on any machine — no dependency issues or manual database configuration.
 
-**Preparação para deploy**
-Foram implementados endpoints para gerenciar a lista de jogos monitorados sem derrubar a aplicação — inserir e remover jogos via API, além de um endpoint para consultar o histórico de preços fora do dashboard.
+**Production readiness**
+Endpoints were implemented to manage the list of monitored games without taking the application down — adding and removing games via API, plus an endpoint to query price history outside the dashboard.
 
 **ThreadedConnectionPool**
-O pool de conexões trata conexões mortas automaticamente, reutilizando-as entre requisições. Isso evita a sobrecarga de autenticação e rede exigida para estabelecer uma conexão do zero, reduz a latência das requisições e preserva memória e processamento do servidor de banco de dados.
+The connection pool handles dead connections automatically, reusing them across requests. This avoids the overhead of authentication and network setup required to establish a connection from scratch, reduces request latency, and preserves memory and processing on the database server.
 
-**Autenticação**
-Cada endpoint exige autenticação via `x-api-key`, retornando os status HTTP corretos em caso de falha. Como os endpoints serão consumidos tanto pelo N8N quanto por usuários externos, o tratamento de segurança foi implementado desde o início. Melhorias futuras incluirão geração de tokens e refresh para uso em tempo real.
+**Authentication**
+Every endpoint requires authentication via `x-api-key`, returning the correct HTTP status codes on failure. Since the endpoints will be consumed by both N8N and external users, security handling was implemented from the start. Future improvements will include token generation and refresh for real-time use.
 
-**Teste unitarios**
-O uso de testes unitários garante a cobertura das mudanças nas regras de negócio. Para isso, foram implementados testes utilizando o framework Pytest em conjunto com o `unittest.mock`, por meio do uso de `MagicMock`, permitindo simular dependências e validar comportamentos de forma isolada e confiável.
-
+**Unit Tests**
+Unit tests ensure coverage of business rule changes. Tests were implemented using the Pytest framework together with `unittest.mock` via `MagicMock`, allowing dependencies to be simulated and behaviors validated in an isolated, reliable way.
 
 ---
 
 ## 📊 Dashboard
 
-O dashboard Streamlit exibe:
-- Total de jogos monitorados
-- Gráfico de variação de preço por jogo
-- Tabela com todos os registros salvos
+The Streamlit dashboard displays:
+- Total monitored games
+- Price variation chart per game
+- Table with all saved records
 
 ```bash
 python -m streamlit run dashboard/app.py
@@ -154,71 +155,71 @@ python -m streamlit run dashboard/app.py
 
 ---
 
-## 🐛 Dificuldades e Aprendizados
+## 🐛 Challenges & Learnings
 
-**Logger com rotação diária** — configurar o `TimedRotatingFileHandler` corretamente, evitar handlers duplicados com o guard `if not logger.handlers`, e entender que o arquivo fica travado enquanto o processo está rodando foram os principais desafios.
+**Logger with daily rotation** — correctly configuring `TimedRotatingFileHandler`, avoiding duplicate handlers with the `if not logger.handlers` guard, and understanding that the file stays locked while the process is running were the main challenges.
 
-**Design do banco de dados** — a decisão entre usar `UNIQUE` com upsert versus inserção simples com validação na camada de serviço. A lógica ficou no `sentinel_price.py`, deixando o banco responsável apenas por persistir — mais limpo e escalável.
+**Database design** — the decision between using `UNIQUE` with upsert versus simple insertion with validation at the service layer. The logic lives in `sentinel_price.py`, leaving the database responsible only for persistence — cleaner and more scalable.
 
-**Integração N8N + FastAPI** — entender o fluxo de dados entre o Schedule Trigger, o HTTP Request e o IF node para evitar spam de emails foi um aprendizado importante sobre orquestração de workflows.
+**N8N + FastAPI integration** — understanding the data flow between the Schedule Trigger, the HTTP Request node, and the IF node to avoid email spam was an important lesson in workflow orchestration.
 
-**Migração SQLite → PostgreSQL** — adaptar o `db_manager.py` trocando `sqlite3` por `psycopg2`, ajustando placeholders de `?` para `%s` e `AUTOINCREMENT` para `SERIAL`. A camada de serviço não precisou de nenhuma alteração.
+**SQLite → PostgreSQL migration** — adapting `db_manager.py` by swapping `sqlite3` for `psycopg2`, adjusting placeholders from `?` to `%s`, and `AUTOINCREMENT` to `SERIAL`. The service layer required no changes at all.
 
-**Tratamento de erros HTTP** — entender que retornar `200 OK` com `{"status": "erro"}` no body não é o mesmo que retornar um erro HTTP real. Ferramentas como o N8N não conseguem tratar isso como falha — o status code correto é o que define o comportamento da automação.
+**HTTP error handling** — understanding that returning `200 OK` with `{"status": "error"}` in the body is not the same as returning a real HTTP error. Tools like N8N cannot treat this as a failure — the correct status code is what defines the automation's behavior.
 
-**Pool de conexões** — migrar de uma conexão única no `__init__` para um `ThreadedConnectionPool` compartilhado, garantindo que a aplicação não quebre se o banco reiniciar e que múltiplas requisições simultâneas sejam atendidas corretamente.
-
----
-
-## 🔮 Melhorias Futuras
-
-- [x] Migração de SQLite para PostgreSQL
-- [x] Containerização com Docker
-- [x] Pool de conexões com `ThreadedConnectionPool`
-- [x] Endpoint `GET /historico/{jogo}` para consultar preços via API
-- [x] Gerenciamento de jogos via endpoint (`POST`, `GET`, `DELETE`)
-- [ ] Cache de lojas com Redis
-- [ ] Autenticação via tokens JWT com refresh
-- [ ] Notificação via Telegram além do email
-- [ ] Deploy em produção (Railway ou Render)
-- [ ] Retry automático em caso de falha na requisição à CheapShark
+**Connection pool** — migrating from a single connection in `__init__` to a shared `ThreadedConnectionPool`, ensuring the application does not break if the database restarts and that multiple simultaneous requests are handled correctly.
 
 ---
 
-## 📁 Estrutura do Projeto
+## 🔮 Future Improvements
+
+- [x] Migration from SQLite to PostgreSQL
+- [x] Containerization with Docker
+- [x] Connection pooling with `ThreadedConnectionPool`
+- [x] `GET /history/{game}` endpoint to query prices via API
+- [x] Game management via endpoints (`POST`, `GET`, `DELETE`)
+- [ ] Store cache with Redis
+- [ ] JWT authentication with token refresh
+- [ ] Telegram notifications in addition to email
+- [ ] Production deployment (Railway or Render)
+- [ ] Automatic retry on CheapShark API request failure
+
+---
+
+## 📁 Project Structure
 
 ```
 SentinelLog-game-price-monitor/
 ├── api/
-│   ├── client.py           # Cliente HTTP reutilizável
-│   ├── game_api_client.py  # Integração com CheapShark API
-│   └── my_api.py           # API FastAPI
+│   ├── client.py           # Reusable HTTP client
+│   ├── game_api_client.py  # CheapShark API integration
+│   └── my_api.py           # FastAPI application
 ├── dashboard/
-│   └── app.py              # Dashboard Streamlit
+│   └── app.py              # Streamlit dashboard
 ├── database/
-│   ├── connection.py       # Pool de conexões PostgreSQL
-│   └── db_manager.py       # Gerenciamento do banco
+│   ├── connection.py       # PostgreSQL connection pool
+│   └── db_manager.py       # Database management
 ├── services/
-│   └── sentinel_price.py   # Lógica principal do monitor
+│   └── sentinel_price.py   # Core monitor logic
 ├── utils/
-│   └── logger.py           # Logger com rotação diária
-├── logs/                   # Logs gerados (ignorado pelo git)
-├── main.py                 # Entry point para teste local
-├── Dockerfile.api          # Dockerfile da FastAPI
-├── Dockerfile.dashboard    # Dockerfile do Streamlit
-├── docker-compose.yml      # Orquestração dos containers
-├── requirements.txt        # Dependências
-├── .env.example            # Exemplo de variáveis de ambiente
+│   └── logger.py           # Logger with daily rotation
+├── logs/                   # Generated logs (git-ignored)
+├── main.py                 # Entry point for local testing
+├── Dockerfile.api          # FastAPI Dockerfile
+├── Dockerfile.dashboard    # Streamlit Dockerfile
+├── docker-compose.yml      # Container orchestration
+├── requirements.txt        # Dependencies
+├── .env.example            # Environment variable example
 └── .gitignore
 ```
 
 ---
 
-### Prints de Execução
+### Execution Screenshots
 
 #### N8N
 ![workflow](assets/worflow_n8n.png)
-![Sucesso no workflow](assets/workflow_sucess.png)
+![Workflow success](assets/workflow_sucess.png)
 
 #### Logs
 ![Logging](assets/logg_action.png)
@@ -227,13 +228,13 @@ SentinelLog-game-price-monitor/
 ![Dashboard 1](assets/dashboard_1.png)
 ![Dashboard 2](assets/dashboard_2.png)
 
-#### Documentação Swagger
+#### Swagger Documentation
 ![Endpoints](assets/doc_api.png)
 ![Schemas](assets/api_schemas.png)
 
 ---
 
-## 👤 Autor
+## 👤 Author
 
-Feito por **Wellington Roveder**  
+Made by **Wellington Roveder**  
 [LinkedIn](https://www.linkedin.com/in/wellington-roveder-04637b37b/) • [GitHub](https://github.com/Wellington-Roveder?tab=repositories)
