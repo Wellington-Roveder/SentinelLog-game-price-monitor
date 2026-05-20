@@ -135,6 +135,10 @@ O pool de conexões trata conexões mortas automaticamente, reutilizando-as entr
 **Autenticação**
 Cada endpoint exige autenticação via `x-api-key`, retornando os status HTTP corretos em caso de falha. Como os endpoints serão consumidos tanto pelo N8N quanto por usuários externos, o tratamento de segurança foi implementado desde o início. Melhorias futuras incluirão geração de tokens e refresh para uso em tempo real.
 
+**Teste unitarios**
+O uso de testes unitários garante a cobertura das mudanças nas regras de negócio. Para isso, foram implementados testes utilizando o framework Pytest em conjunto com o `unittest.mock`, por meio do uso de `MagicMock`, permitindo simular dependências e validar comportamentos de forma isolada e confiável.
+
+
 ---
 
 ## 📊 Dashboard
