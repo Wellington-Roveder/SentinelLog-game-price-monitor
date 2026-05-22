@@ -2,6 +2,7 @@ from api.game_api_client import GameAPI
 import time
 from utils.logger import configurar_logger
 import random
+from requests.exceptions import HTTPError
 
 
 
@@ -55,7 +56,7 @@ def executar_monitor(db):
                 logger.warning(f"NAO ENCONTRADO - Jogo {jogo} nao retornou dados da API")
                     
         except Exception as e:
-            if "429" in str(e):
+            if isinstance(e, HTTPError) and e.response.status_code == 429:
                 logger.warning(f"RATE LIMIT - Aguardando 60s devido a erro 429 em {jogo[1]}")
                 time.sleep(60) # Pausa longa específica para o erro
             else:

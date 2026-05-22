@@ -6,7 +6,7 @@ from utils.logger import configurar_logger
 
 logger = configurar_logger()
 
-def retry(max_retries=3,backoff_factor=2,status_forcelist=(500,502,504)):
+def retry(max_retries=3,backoff_factor=2,status_forcelist=(500,502,504,429)):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args ,**kwargs):
