@@ -11,7 +11,7 @@ db = DBManager()
 
 app = FastAPI()
 
-API_KEY = os.getenv("INTERNAL_API_KEY")
+API_KEY = os.getenv("INTERNAL_Api_KEY")
 
 class Jogos(BaseModel):
     nome_jogo: str
