@@ -1,8 +1,12 @@
 # 🎮 SentinelLog — Monitor de Preços de Jogos
 
-[English](README.md) | [Português do Brasil](README.pt-BR.md)
-
-
+![Python](https://img.shields.io/badge/Python-3.12-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.136-green)
+![Docker](https://img.shields.io/badge/Docker-Containerizado-blue)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)
+![Redis](https://img.shields.io/badge/Redis-Cache-red)
+![Tests](https://img.shields.io/badge/Testes-Pytest-yellow)
+![Railway](https://img.shields.io/badge/Deploy-Railway-purple)
 
 > Pipeline ETL em Python que monitora preços de jogos em tempo real via API REST, detecta variações automaticamente e envia alertas por email quando encontra promoções.
 
@@ -14,7 +18,7 @@ O SentinelLog nasceu da ideia de não perder promoções de jogos. Ele consulta 
 
 O projeto foi construído com foco em escalabilidade e boas práticas — separação de responsabilidades em camadas, logging estruturado com rotação diária, e automação de ponta a ponta sem intervenção manual.
 
-Hoje o SentinelLog está sendo preparado para produção real, incrementando robustez a cada sprint. Além de um monitor de preços, ele é uma API de monitoramento completa — transformando uma automação simples em um projeto real e escalável.
+O SentinelLog está em produção e ficando mais robusto a cada sprint. Além de um monitor de preços, ele é uma API de monitoramento completa — transformando uma automação simples em um projeto real e escalável.
 
 ---
 
@@ -26,6 +30,7 @@ Hoje o SentinelLog está sendo preparado para produção real, incrementando rob
 | FastAPI + Uvicorn | API para expor o monitor como serviço |
 | PostgreSQL | Persistência do histórico de preços |
 | psycopg2 | Conector Python → PostgreSQL |
+| Redis | Cache de lojas e otimização de requisições |
 | Streamlit | Dashboard interativo de visualização |
 | N8N | Orquestração e envio de emails |
 | Docker + Docker Compose | Containerização dos serviços |
@@ -45,12 +50,68 @@ sentinel_price.py — busca e compara preços
       ↓
 CheapShark API (preços em tempo real)
       ↓
+Redis cache (TTL de 24h)
+      ↓
 PostgreSQL — salva apenas quando o preço muda
       ↓
 Retorna promoções → N8N envia email
       ↓
 Streamlit — Dashboard com histórico e gráficos
 ```
+
+---
+
+## 🐳 Arquitetura Docker
+
+A aplicação roda em um ambiente multi-container orquestrado com Docker Compose.
+
+Serviços:
+
+- **FastAPI** — entrypoint da aplicação, expõe o monitor como serviço REST
+- **Streamlit** — dashboard interativo para visualização do histórico de preços
+- **PostgreSQL** — banco de dados relacional persistente
+- **Redis** — camada de cache para dados de lojas
+
+Todos os serviços se comunicam pela rede interna do Docker, usando containers isolados e volumes persistentes.
+
+```bash
+docker-compose up --build
+```
+
+---
+
+## ⚡ Cache com Redis
+
+A lista de lojas retornada pela CheapShark é armazenada no Redis com TTL de 24 horas, reduzindo requisições desnecessárias à API externa e melhorando a performance do monitor. Isso evita chamadas redundantes a serviços externos a cada ciclo de execução.
+
+---
+
+## 📡 Endpoints da API
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST | `/executar` | Executa o monitor de preços |
+| GET | `/historico/{jogo}` | Retorna o histórico de preços de um jogo |
+| POST | `/jogos` | Adiciona um jogo à lista monitorada |
+| GET | `/jogos` | Lista todos os jogos monitorados |
+| DELETE | `/jogos/{id}` | Remove um jogo da lista monitorada |
+
+Todos os endpoints exigem autenticação via header `x-api-key`.
+
+---
+
+## 🛡️ Preparação para Produção
+
+- Isolamento de variáveis de ambiente via `.env`
+- Serviços dockerizados com Docker Compose
+- Volumes persistentes no PostgreSQL
+- Camada de cache Redis com TTL
+- Autenticação via `x-api-key` em todos os endpoints
+- Logging estruturado com rotação diária
+- Pool de conexões com `ThreadedConnectionPool`
+- Status codes HTTP corretos em todos os endpoints
+- Retry automático com exponential backoff em falhas de API
+- Tratamento de rate limit para APIs externas
 
 ---
 
@@ -87,6 +148,8 @@ DB_USER=seu_usuario
 DB_SENHA=sua_senha
 DB_HOST=localhost
 DB_PORT=5432
+REDIS_HOST=localhost
+REDIS_PORT=6379
 INTERNAL_API_KEY=sua_chave
 ```
 
@@ -110,6 +173,21 @@ python -m streamlit run dashboard/app.py
 ```bash
 docker-compose up --build
 ```
+
+---
+
+## 🧪 Rodando os Testes
+
+```bash
+pytest tests/
+```
+
+Os testes cobrem:
+
+- Comportamento do decorator de retry sob falhas HTTP
+- Regras de negócio da camada de serviço com `MagicMock`
+- Testes unitários isolados sem dependências externas
+- Simulação de falhas HTTP e tratamento de erros
 
 ---
 
@@ -139,9 +217,11 @@ O pool de conexões trata conexões mortas automaticamente, reutilizando-as entr
 **Autenticação**
 Cada endpoint exige autenticação via `x-api-key`, retornando os status HTTP corretos em caso de falha. Como os endpoints serão consumidos tanto pelo N8N quanto por usuários externos, o tratamento de segurança foi implementado desde o início. Melhorias futuras incluirão geração de tokens e refresh para uso em tempo real.
 
-**Teste unitarios**
-O uso de testes unitários garante a cobertura das mudanças nas regras de negócio. Para isso, foram implementados testes utilizando o framework Pytest em conjunto com o `unittest.mock`, por meio do uso de `MagicMock`, permitindo simular dependências e validar comportamentos de forma isolada e confiável.
+**Testes Unitários**
+Os testes unitários garantem cobertura em mudanças nas regras de negócio. Foram implementados com o framework Pytest junto ao `unittest.mock` via `MagicMock`, permitindo simular dependências e validar comportamentos de forma isolada e confiável.
 
+**Retry com exponential backoff**
+O cliente HTTP implementa retry automático com exponential backoff (2s, 4s, 8s) para falhas transitórias. Respostas de rate limit (429) acionam uma pausa de 60 segundos antes de continuar para o próximo jogo.
 
 ---
 
@@ -155,6 +235,19 @@ O dashboard Streamlit exibe:
 ```bash
 python -m streamlit run dashboard/app.py
 ```
+
+---
+
+## ☁️ Deploy
+
+O projeto está em produção no **Railway** com PostgreSQL e Redis gerenciados.
+
+API em produção: `https://responsible-unity-production-32d1.up.railway.app`
+
+Também compatível com:
+- Render
+- VPS com Docker
+- Oracle Cloud Free Tier
 
 ---
 
@@ -172,6 +265,8 @@ python -m streamlit run dashboard/app.py
 
 **Pool de conexões** — migrar de uma conexão única no `__init__` para um `ThreadedConnectionPool` compartilhado, garantindo que a aplicação não quebre se o banco reiniciar e que múltiplas requisições simultâneas sejam atendidas corretamente.
 
+**Rate limiting** — tratar o rate limit da CheapShark em produção implementando delays aleatórios entre requisições e uma pausa dedicada de 60 segundos em respostas 429.
+
 ---
 
 ## 🔮 Melhorias Futuras
@@ -180,12 +275,12 @@ python -m streamlit run dashboard/app.py
 - [x] Containerização com Docker
 - [x] Pool de conexões com `ThreadedConnectionPool`
 - [x] Endpoint `GET /historico/{jogo}` para consultar preços via API
-- [x] Gerenciamento de jogos via endpoint (`POST`, `GET`, `DELETE`)
-- [ ] Cache de lojas com Redis
-- [ ] Autenticação via tokens JWT com refresh
-- [ ] Notificação via Telegram além do email
-- [ ] Deploy em produção (Railway ou Render)
-- [ ] Retry automático em caso de falha na requisição à CheapShark
+- [x] Gerenciamento de jogos via endpoints (`POST`, `GET`, `DELETE`)
+- [x] Cache de lojas com Redis (TTL de 24h)
+- [x] Retry automático com exponential backoff em falhas de API
+- [x] Deploy em produção no Railway
+- [ ] Autenticação via JWT com refresh de token
+- [ ] Notificações via Telegram além do email
 
 ---
 
@@ -194,16 +289,20 @@ python -m streamlit run dashboard/app.py
 ```
 SentinelLog-game-price-monitor/
 ├── api/
-│   ├── client.py           # Cliente HTTP reutilizável
+│   ├── client.py           # Cliente HTTP reutilizável com retry
 │   ├── game_api_client.py  # Integração com CheapShark API
-│   └── my_api.py           # API FastAPI
+│   └── my_api.py           # Aplicação FastAPI
 ├── dashboard/
 │   └── app.py              # Dashboard Streamlit
 ├── database/
 │   ├── connection.py       # Pool de conexões PostgreSQL
-│   └── db_manager.py       # Gerenciamento do banco
+│   ├── db_manager.py       # Gerenciamento do banco
+│   └── redis_client.py     # Cliente Redis
 ├── services/
 │   └── sentinel_price.py   # Lógica principal do monitor
+├── tests/
+│   ├── test_sentinel_price.py
+│   └── test_retry.py
 ├── utils/
 │   └── logger.py           # Logger com rotação diária
 ├── logs/                   # Logs gerados (ignorado pelo git)
@@ -218,7 +317,7 @@ SentinelLog-game-price-monitor/
 
 ---
 
-### Prints de Execução
+## 📸 Prints de Execução
 
 #### N8N
 ![workflow](assets/worflow_n8n.png)
