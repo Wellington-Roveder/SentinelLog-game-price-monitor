@@ -19,7 +19,7 @@ def retry(max_retries=3,backoff_factor=2,status_forcelist=(500,502,504,429)):
                 except (RequestException, ConnectionError) as e:
                     retries += 1
                     logger.warning(f"Tentando novamente, Tentativa: {retries} Motivo {e}")
-
+                    
 
                     if isinstance(e, HTTPError) and e.response.status_code not in status_forcelist:
                         logger.error(f"Erro na Execuçao {e}")
@@ -31,7 +31,12 @@ def retry(max_retries=3,backoff_factor=2,status_forcelist=(500,502,504,429)):
                         logger.error("Tentativas Excedeu os Limites")
                         raise e
                         
-
+                    if isinstance(e,HTTPError) and e.response.status_code == 429:    
+                        retry_after = e.response.headers.get("Retry-After")
+                        logger.error(
+                        f"429 | Retry-After: {retry_after}"
+                    )           
+                    
                     sleep_time = backoff_factor ** retries
                     time.sleep(sleep_time)
         return wrapper
@@ -44,7 +49,10 @@ def retry(max_retries=3,backoff_factor=2,status_forcelist=(500,502,504,429)):
 class APIClient:
     def __init__(self, base_url):
        self.base_url = base_url
-       self.session = requests.Session() # reutiliza conexao http mais rapido menos consumo
+       self.session = requests.Session()
+       self.session.headers.update({
+        "User-Agent": "SentinelLog/1.0 (rovederwellington@gmail.com)"
+        }) # reutiliza conexao http mais rapido menos consumo
 
     @retry(max_retries=3, backoff_factor=2)
     def get(self, endpoint):
