@@ -1,11 +1,12 @@
 from api.game_api_client import GameAPI
 import time
 from utils.logger import configurar_logger
-
+import random
 
 
 
 def executar_monitor(db):
+    time.sleep(5)
     service = GameAPI()
     logger = configurar_logger()
 
@@ -17,12 +18,14 @@ def executar_monitor(db):
     logger.info("INICIO - Ciclo de monitoramento iniciado")
     
     for jogo in jogos_para_monitorar:
+        time.sleep(random.uniform(2.0, 4.0))
         try:
             info = service.buscar_nome_jogo(jogo[1])
         
             if info:
                 nome = info['nome']
                 preco_atual = info['preco_atual']
+                time.sleep(0.5)
                 deal_id = info['deal_id']
                 loja = service.buscar_loja(deal_id)
             
@@ -52,9 +55,11 @@ def executar_monitor(db):
                 logger.warning(f"NAO ENCONTRADO - Jogo {jogo} nao retornou dados da API")
                     
         except Exception as e:
-            logger.error(f"FALHA - Erro inesperado em {jogo}: {str(e)}")  
-                   
-        time.sleep(1)
+            if "429" in str(e):
+                logger.warning(f"RATE LIMIT - Aguardando 60s devido a erro 429 em {jogo[1]}")
+                time.sleep(60) # Pausa longa específica para o erro
+            else:
+                logger.error(f"FALHA - Erro inesperado em {jogo}: {str(e)}")       
         
     logger.info("FIM - Monitoramento concluido")
     return jogos_promocao
