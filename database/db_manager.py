@@ -1,4 +1,4 @@
-import psycopg2 
+import psycopg2
 from datetime import datetime
 from dotenv import load_dotenv
 from database.connection import connection_pool
@@ -8,7 +8,6 @@ load_dotenv()
 
 
 class DBManager:
-
     def __init__(self):
         self._create_table()
         self._create_table_jogos()
@@ -21,7 +20,7 @@ class DBManager:
             conn = connection_pool.getconn()
             cursor = conn.cursor()
 
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS pricescrapers(
                     id SERIAL PRIMARY KEY,
                     produto TEXT NOT NULL,
@@ -29,7 +28,7 @@ class DBManager:
                     data_verificacao TEXT NOT NULL,
                     loja_barata TEXT NOT NULL
                 )
-            ''')
+            """)
 
             conn.commit()
 
@@ -50,11 +49,14 @@ class DBManager:
 
             data_atual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-            cursor.execute('''
+            cursor.execute(
+                """
                 INSERT INTO pricescrapers
                 (produto, valor, data_verificacao, loja_barata)
                 VALUES (%s, %s, %s, %s)
-            ''', (produto, valor, data_atual, loja))
+            """,
+                (produto, valor, data_atual, loja),
+            )
 
             conn.commit()
 
@@ -77,12 +79,15 @@ class DBManager:
             conn = connection_pool.getconn()
             cursor = conn.cursor()
 
-            cursor.execute('''
+            cursor.execute(
+                """
                 SELECT valor, data_verificacao, loja_barata
                 FROM pricescrapers
                 WHERE produto = %s
                 ORDER BY id DESC
-            ''', (produto,))
+            """,
+                (produto,),
+            )
 
             return cursor.fetchall()
 
@@ -101,12 +106,12 @@ class DBManager:
             conn = connection_pool.getconn()
             cursor = conn.cursor()
 
-            cursor.execute('''
+            cursor.execute("""
                 CREATE TABLE IF NOT EXISTS jogos (
                     id_jogo SERIAL PRIMARY KEY,
                     nome_jogo TEXT NOT NULL UNIQUE
                 )
-            ''')
+            """)
 
             conn.commit()
 
@@ -126,12 +131,12 @@ class DBManager:
             cursor = conn.cursor()
 
             cursor.execute(
-                '''
+                """
                 INSERT INTO jogos (nome_jogo)
                 VALUES (%s)
                 RETURNING id_jogo
-                ''',
-                (nome_jogo,)
+                """,
+                (nome_jogo,),
             )
 
             id_gerado = cursor.fetchone()[0]
@@ -143,8 +148,6 @@ class DBManager:
         except psycopg2.errors.UniqueViolation as e:
             conn.rollback()
             raise
-            
-
 
         except Exception as e:
             conn.rollback()
@@ -165,11 +168,11 @@ class DBManager:
             conn = connection_pool.getconn()
             cursor = conn.cursor()
 
-            cursor.execute('''
+            cursor.execute("""
                 SELECT *
                 FROM jogos
                 ORDER BY id_jogo DESC
-            ''')
+            """)
 
             return cursor.fetchall()
 
@@ -179,29 +182,8 @@ class DBManager:
 
             if conn:
                 connection_pool.putconn(conn)
-
 
     def buscar_tudo(self):
-        conn = None
-        cursor = None 
-        
-        try:
-            conn = connection_pool.getconn()
-            cursor = conn.cursor()
-
-            cursor.execute('''SELECT * FROM pricescrapers''')
-
-            return cursor.fetchall()
-
-        finally:
-            if cursor:
-                cursor.close()
-
-            if conn:
-                connection_pool.putconn(conn)
-
-    
-    def deletar_jogo(self,id_jogo):
         conn = None
         cursor = None
 
@@ -209,7 +191,26 @@ class DBManager:
             conn = connection_pool.getconn()
             cursor = conn.cursor()
 
-            cursor.execute('''DELETE FROM jogos  WHERE id_jogo = %s''',(id_jogo,))
+            cursor.execute("""SELECT * FROM pricescrapers""")
+
+            return cursor.fetchall()
+
+        finally:
+            if cursor:
+                cursor.close()
+
+            if conn:
+                connection_pool.putconn(conn)
+
+    def deletar_jogo(self, id_jogo):
+        conn = None
+        cursor = None
+
+        try:
+            conn = connection_pool.getconn()
+            cursor = conn.cursor()
+
+            cursor.execute("""DELETE FROM jogos  WHERE id_jogo = %s""", (id_jogo,))
 
             conn.commit()
 
@@ -218,11 +219,9 @@ class DBManager:
             return True
         except Exception as e:
             if conn:
-               conn.rollback()
+                conn.rollback()
 
-
-            raise e   
-        
+            raise e
 
         finally:
             if cursor:
@@ -230,5 +229,3 @@ class DBManager:
 
             if conn:
                 connection_pool.putconn(conn)
-   
-
