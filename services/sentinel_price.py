@@ -36,7 +36,7 @@ def executar_monitor(db):
 
                     if preco_atual < ultimo_preco:
                         logger.info(
-                            f"PROMOCAO - {nome}: R${ultimo_preco} -> R${preco_atual} na loja {loja}"
+                            f"PROMOCAO - {nome}: US${ultimo_preco} -> US${preco_atual} na loja {loja}"
                         )
                         db.salvar_preco(nome, preco_atual, loja)
                         jogos_promocao.append(
@@ -45,7 +45,7 @@ def executar_monitor(db):
 
                     elif preco_atual > ultimo_preco:
                         logger.info(
-                            f"AVISO - {nome}: Preco subiu para R${preco_atual}. Atualizando base."
+                            f"AVISO - {nome}: Preco subiu para US${preco_atual}. Atualizando base."
                         )
                         db.salvar_preco(nome, preco_atual, loja)
 
@@ -53,7 +53,7 @@ def executar_monitor(db):
                         # Preco igual: Mantemos o log limpo
                         pass
                 else:
-                    logger.info(f"NOVO - {nome} cadastrado com R${preco_atual}")
+                    logger.info(f"NOVO - {nome} cadastrado com US${preco_atual}")
                     db.salvar_preco(nome, preco_atual, loja)
             else:
                 logger.warning(
