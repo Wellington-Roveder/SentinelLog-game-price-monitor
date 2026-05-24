@@ -86,7 +86,7 @@ def deletar_jogo(id_jogo: int, x_api_key: str = Header()):
 
         return {"mensagem": "Jogo removido com sucesso"}
     except HTTPException as e:
-        raise
+        raise e
     except Exception as e:
         logger.error(f"Erro interno no Servidor: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no Servidor")
@@ -107,7 +107,7 @@ def pegar_historico(nome_jogo: str, x_api_key: str = Header()):
         return resultado
 
     except HTTPException as e:
-        raise
+        raise e
     except Exception as e:
         logger.error(f"Erro interno no Servidor: {e}")
         raise HTTPException(status_code=500, detail="Erro interno no Servidor")

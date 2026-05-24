@@ -145,7 +145,7 @@ class DBManager:
 
             return id_gerado
 
-        except psycopg2.errors.UniqueViolation as e:
+        except psycopg2.errors.UniqueViolation:
             conn.rollback()
             raise
 

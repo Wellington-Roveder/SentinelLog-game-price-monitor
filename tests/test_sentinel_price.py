@@ -1,5 +1,4 @@
 from services.sentinel_price import executar_monitor
-import pytest
 from unittest.mock import patch
 from unittest.mock import MagicMock
 
